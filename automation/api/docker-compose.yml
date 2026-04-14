@@ -10,44 +10,42 @@ services:
       dockerfile: Dockerfile
     container_name: inventree-api
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - DJANGO_SECRET_KEY=hackathon-super-secret-key-2026
       - DJANGO_DEBUG=True
       - DJANGO_ALLOWED_HOSTS=*
-      # Для SQLite (по умолчанию) — оставляем DATABASE_ENGINE пустым
-      # Для PostgreSQL — раскомментируйте строки ниже:
-      # - DATABASE_ENGINE=postgresql
-      # - POSTGRES_DB=inventree
-      # - POSTGRES_USER=inventree
-      # - POSTGRES_PASSWORD=inventree
-      # - POSTGRES_HOST=db
-      # - POSTGRES_PORT=5432
+      - DATABASE_ENGINE=postgresql
+      - POSTGRES_DB=inventree
+      - POSTGRES_USER=inventree
+      - POSTGRES_PASSWORD=inventree
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
     volumes:
-      # Монтируем код для hot-reload в режиме разработки
       - .:/app
-      # Persistent volume для SQLite
-      - sqlite_data:/app/db
-    # depends_on:
-    #   - db
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # PostgreSQL (опционально — раскомментировать при необходимости)
+  # PostgreSQL
   # ---------------------------------------------------------------------------
-  # db:
-  #   image: postgres:16-alpine
-  #   container_name: inventree-db
-  #   environment:
-  #     - POSTGRES_DB=inventree
-  #     - POSTGRES_USER=inventree
-  #     - POSTGRES_PASSWORD=inventree
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - pg_data:/var/lib/postgresql/data
-  #   restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    container_name: inventree-db
+    environment:
+      - POSTGRES_DB=inventree
+      - POSTGRES_USER=inventree
+      - POSTGRES_PASSWORD=inventree
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventree -d inventree"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
 volumes:
-  sqlite_data:
-  # pg_data:
+  pg_data:

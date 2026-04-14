@@ -1,13 +1,11 @@
 /**
  * Global authentication setup — runs once before all test projects.
  *
- * Logs in via Django's built-in auth form (/accounts/login/),
- * then persists the session cookie as playwright/.auth/user.json.
- * All spec projects consume that file via storageState in playwright.config.ts.
+ * InvenTree Platform UI (React/Mantine) serves the login page at /ui/.
+ * Form fields use placeholder text, not Django's #id_username selectors.
  *
- * Selector notes:
- *   Django's LoginView renders inputs with id="id_username" / id="id_password".
- *   If your InvenTree deployment uses a custom login template, adjust accordingly.
+ * Persists the session as playwright/.auth/user.json so all spec projects
+ * start already authenticated.
  */
 import { test as setup, expect } from '@playwright/test';
 import * as fs from 'fs';
@@ -22,22 +20,22 @@ setup('authenticate as admin', async ({ page }) => {
     fs.mkdirSync(authDir, { recursive: true });
   }
 
-  await page.goto('/accounts/login/');
+  // InvenTree React SPA — navigating to /web/ redirects to the login page.
+  await page.goto('/web/');
 
-  // Wait for the form to be ready.
-  await page.locator('#id_username').waitFor({ state: 'visible' });
+  // Wait for the React login form to render.
+  await page.getByPlaceholder('Your username').waitFor({ state: 'visible', timeout: 30_000 });
 
-  await page.locator('#id_username').fill('admin');
-  await page.locator('#id_password').fill('inventree');
+  await page.getByPlaceholder('Your username').fill('admin');
+  await page.getByPlaceholder('Your password').fill('inventree');
 
-  // Submit — works for both <input type="submit"> and <button type="submit">.
-  await page.locator('input[type="submit"], button[type="submit"]').first().click();
+  await page.getByRole('button', { name: /log in/i }).click();
 
-  // A successful login redirects away from /accounts/login/.
+  // Successful login redirects to the dashboard (/ui/dashboard or similar).
   await expect(
     page,
-    'Login should redirect to the application after successful authentication',
-  ).not.toHaveURL(/\/accounts\/login/, { timeout: 15_000 });
+    'Login should redirect away from the login page',
+  ).not.toHaveURL(/\/login/, { timeout: 15_000 });
 
   // Persist the authenticated session for all spec projects.
   await page.context().storageState({ path: AUTH_FILE });

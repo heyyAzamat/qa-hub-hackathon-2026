@@ -72,12 +72,8 @@ test('ST-002: Inactive status is visually indicated on the detail page', async (
   await detail.setInactive();
 
   // Reload to confirm the persisted state is also reflected after reload.
-  await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes(`/api/part/${partPk}/`) && r.status() === 200,
-    ),
-    page.reload(),
-  ]);
+  await page.reload();
+  await page.waitForLoadState('domcontentloaded');
 
   await detail.expectInactive();
 });

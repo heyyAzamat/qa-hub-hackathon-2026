@@ -124,8 +124,10 @@ class PartViewSet(viewsets.ModelViewSet):
 
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
+    # category убран из filterset_fields — обрабатывается вручную в get_queryset,
+    # чтобы DjangoFilterBackend не конфликтовал с логикой include_child_categories.
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['category', 'active', 'virtual', 'template', 'assembly', 'component']
+    filterset_fields = ['active', 'virtual', 'template', 'assembly', 'component']
     search_fields = ['name', 'description', 'IPN']
     ordering_fields = ['id', 'name', 'IPN', 'creation_date']
     ordering = ['-creation_date']  # новые детали первыми
@@ -136,6 +138,7 @@ class PartViewSet(viewsets.ModelViewSet):
         - select_related для FK (category, revision_of) — устранение N+1
         - аннотации stock_count и bom_count на уровне БД
         - поддержка параметра include_child_categories
+        - ручная фильтрация по category (чтобы не конфликтовать с DjangoFilterBackend)
         """
         qs = Part.objects.select_related(
             'category', 'revision_of'
@@ -144,18 +147,25 @@ class PartViewSet(viewsets.ModelViewSet):
             bom_count=Count('bom_items'),
         )
 
-        # Поддержка фильтрации по дереву категорий
-        include_children = self.request.query_params.get('include_child_categories', '').lower()
         category_id = self.request.query_params.get('category')
+        include_children = self.request.query_params.get('include_child_categories', '').lower()
 
-        if category_id and include_children in ('true', '1', 'yes'):
-            try:
-                root_category = PartCategory.objects.get(pk=category_id)
-                descendants = root_category.get_descendants(include_self=True)
-                descendant_ids = [cat.pk for cat in descendants]
-                qs = qs.filter(category_id__in=descendant_ids)
-            except PartCategory.DoesNotExist:
-                qs = qs.none()
+        if category_id:
+            if include_children in ('true', '1', 'yes'):
+                # Включаем все дочерние категории через BFS
+                try:
+                    root_category = PartCategory.objects.get(pk=category_id)
+                    descendants = root_category.get_descendants(include_self=True)
+                    descendant_ids = [cat.pk for cat in descendants]
+                    qs = qs.filter(category_id__in=descendant_ids)
+                except PartCategory.DoesNotExist:
+                    qs = qs.none()
+            else:
+                # Стандартная фильтрация по точному совпадению категории
+                try:
+                    qs = qs.filter(category_id=int(category_id))
+                except (ValueError, TypeError):
+                    qs = qs.none()
 
         return qs
 
@@ -203,6 +213,28 @@ class PartViewSet(viewsets.ModelViewSet):
         if not revision_code:
             return Response(
                 {"revision": "Код ревизии обязателен для создания новой версии."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Валидация длины кода ревизии (max_length=20 в модели)
+        if len(str(revision_code)) > 20:
+            return Response(
+                {
+                    "error_code": "BAD_REQUEST",
+                    "message": "Ошибка валидации данных.",
+                    "details": {"revision": ["Код ревизии не может превышать 20 символов."]},
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Нельзя создавать ревизию неактивной детали
+        if not original_part.active:
+            return Response(
+                {
+                    "error_code": "BAD_REQUEST",
+                    "message": "Ошибка валидации данных.",
+                    "details": {"detail": ["Нельзя создать ревизию для неактивной детали."]},
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

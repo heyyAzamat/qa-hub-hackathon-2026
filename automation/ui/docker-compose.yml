@@ -1,0 +1,53 @@
+version: '3.9'
+
+# Запуск: docker compose up -d
+# Остановка: docker compose down
+# Логи: docker compose logs -f
+# Проверка: curl http://localhost:8000/api/part/ -u admin:inventree
+
+services:
+  inventree-db:
+    image: postgres:16-alpine
+    container_name: inventree-db
+    environment:
+      POSTGRES_DB: inventree
+      POSTGRES_USER: inventree
+      POSTGRES_PASSWORD: inventree
+    volumes:
+      - inventree-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventree -d inventree"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  inventree-server:
+    image: inventree/inventree:stable
+    container_name: inventree
+    ports:
+      - "8000:8000"
+    environment:
+      INVENTREE_DB_ENGINE: django.db.backends.postgresql
+      INVENTREE_DB_NAME: inventree
+      INVENTREE_DB_USER: inventree
+      INVENTREE_DB_PASSWORD: inventree
+      INVENTREE_DB_HOST: inventree-db
+      INVENTREE_DB_PORT: 5432
+      INVENTREE_ADMIN_USER: admin
+      INVENTREE_ADMIN_PASSWORD: inventree
+      INVENTREE_ADMIN_EMAIL: admin@example.com
+      INVENTREE_DEBUG: "True"
+      INVENTREE_PLUGINS_ENABLED: "False"
+      INVENTREE_AUTO_UPDATE: "true"
+      INVENTREE_SITE_URL: "http://localhost:8000"
+    volumes:
+      - inventree-data:/home/inventree/data
+    depends_on:
+      inventree-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  inventree-pg:
+  inventree-data:

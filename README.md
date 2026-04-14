@@ -2,7 +2,7 @@
 
 # `<QCoders/>`
 
-### QA Hub Hackathon 2026 — InvenTree Parts Module
+### QA Hub Hackathon 2026 — BugSlayer AI
 
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![pytest](https://img.shields.io/badge/pytest-181%20passed-brightgreen?logo=pytest&logoColor=white)](https://pytest.org/)

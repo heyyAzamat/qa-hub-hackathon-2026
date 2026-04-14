@@ -1,0 +1,25 @@
+{
+  "name": "inventree-ui-tests",
+  "version": "1.0.0",
+  "description": "Playwright UI automation tests for InvenTree Parts module",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:create": "playwright test tests/parts/create-part",
+    "test:tabs": "playwright test tests/parts/part-detail-tabs",
+    "test:types": "playwright test tests/parts/part-types",
+    "test:status": "playwright test tests/parts/part-status",
+    "test:categories": "playwright test tests/categories",
+    "test:revisions": "playwright test tests/revisions",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install chromium --with-deps"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@types/node": "^20.12.0",
+    "typescript": "^5.4.0"
+  }
+}
